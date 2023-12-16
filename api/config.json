@@ -1,0 +1,4 @@
+{
+    "JsonsPath": "/data",
+    "ReceivingResponseChannelTimeout": 5
+}
