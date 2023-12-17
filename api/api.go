@@ -81,7 +81,7 @@ func main() {
 		logInfo(c)
 	})
 
-	r.GET("/values", func(c *gin.Context) {
+	r.GET("/keys", func(c *gin.Context) {
 		input <- structures.Request{
 			KeyFamily: "ram_usage",
 			Action:    "listkeys",
