@@ -173,7 +173,7 @@ func main() {
 	})
 
 	a.POST("input/:value", func(c *gin.Context) {
-		now := time.Now().Format("2006:01:02T15:04")
+		now := time.Now().Format("2006-01-02T15:04")
 		value := c.Params.ByName("value")
 		if value == "" {
 			c.JSON(http.StatusBadRequest, gin.H{
