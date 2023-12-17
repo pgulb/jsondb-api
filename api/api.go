@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 	"os"
@@ -122,7 +123,57 @@ func main() {
 		logInfo(c)
 	})
 
+	r.GET("/latest_value", func(c *gin.Context) {
+		input <- structures.Request{
+			Key:       "latest",
+			KeyFamily: "ram_usage",
+			Action:    "get",
+		}
+		resp, err := db.HandleOutput(output, timeout)
+		if err != nil {
+			log.Fatal(err)
+			c.JSON(http.StatusBadRequest, gin.H{
+				"message": err.Error(),
+			})
+		} else {
+			latest := make(map[string]string)
+			err := json.Unmarshal([]byte(resp[0]), &latest)
+			if err != nil {
+				log.Fatal(err)
+				c.JSON(http.StatusBadRequest, gin.H{
+					"message": err.Error(),
+				})
+			} else {
+				input <- structures.Request{
+					Key:       latest["0"],
+					KeyFamily: "ram_usage",
+					Action:    "get",
+				}
+				resp, err := db.HandleOutput(output, timeout)
+				if err != nil {
+					c.JSON(http.StatusBadRequest, gin.H{
+						"message": err.Error(),
+					})
+				} else {
+					latest_value := make(map[string]string)
+					err := json.Unmarshal([]byte(resp[0]), &latest_value)
+					if err != nil {
+						c.JSON(http.StatusBadRequest, gin.H{
+							"message": err.Error(),
+						})
+					} else {
+						c.JSON(http.StatusOK, gin.H{
+							latest["0"]: latest_value["0"],
+						})
+					}
+				}
+			}
+		}
+		logInfo(c)
+	})
+
 	a.POST("input/:value", func(c *gin.Context) {
+		now := time.Now().Format("2006:01:02T15:04")
 		value := c.Params.ByName("value")
 		if value == "" {
 			c.JSON(http.StatusBadRequest, gin.H{
@@ -131,19 +182,32 @@ func main() {
 		} else {
 			input <- structures.Request{
 				KeyFamily: "ram_usage",
-				Key:       time.Now().Format("2006:01:02T15:04"),
+				Key:       now,
 				Value:     value,
 				Action:    "set",
 			}
-			resp, err := db.HandleOutput(output, timeout)
+			_, err := db.HandleOutput(output, timeout)
 			if err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{
 					"message": err.Error(),
 				})
 			} else {
-				c.JSON(http.StatusOK, gin.H{
-					"message": resp,
-				})
+				input <- structures.Request{
+					KeyFamily: "ram_usage",
+					Key:       "latest",
+					Value:     now,
+					Action:    "set",
+				}
+				resp, err := db.HandleOutput(output, timeout)
+				if err != nil {
+					c.JSON(http.StatusBadRequest, gin.H{
+						"message": err.Error(),
+					})
+				} else {
+					c.JSON(http.StatusOK, gin.H{
+						"message": resp,
+					})
+				}
 			}
 		}
 		logInfo(c)
